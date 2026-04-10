@@ -33,7 +33,15 @@ export async function POST(req: NextRequest) {
     }
 
     // --- Input validation ---
-    const body = await req.json()
+    let body: Record<string, unknown>
+    try {
+      body = await req.json()
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 }
+      )
+    }
     const validation = sanitizeClaim(body.claim)
 
     if (!validation.valid) {
@@ -107,10 +115,32 @@ Return a JSON object with exactly these fields:
   } catch (err) {
     console.error("Verify API Error:", err)
 
-    const message =
-      err instanceof Error && err.message.includes("timed out")
-        ? "Verification timed out. The AI service may be under load — please try again."
-        : "Verification failed due to a server error"
+    const errMsg = err instanceof Error ? err.message : ""
+
+    let message: string
+    let status = 500
+
+    if (errMsg.includes("No AI API key configured")) {
+      message = "No AI provider is configured. Please set OPENAI_API_KEY or GEMINI_API_KEY in your .env file."
+      status = 503
+    } else if (errMsg.includes("timed out")) {
+      message = "Verification timed out. The AI service may be under load — please try again."
+      status = 504
+    } else if (errMsg.includes("401") || errMsg.includes("Incorrect API key")) {
+      message = "AI API key is invalid or expired. Please check your .env configuration."
+      status = 502
+    } else if (errMsg.includes("429") || errMsg.includes("quota")) {
+      message = "AI provider rate limit or quota exceeded. Please try again later."
+      status = 502
+    } else if (errMsg.includes("503") || errMsg.includes("high demand") || errMsg.includes("Service Unavailable")) {
+      message = "The AI service is temporarily overloaded. Please try again in a few moments."
+      status = 503
+    } else if (errMsg.includes("500") || errMsg.includes("Internal Server Error")) {
+      message = "The AI service encountered an internal error. Please try again."
+      status = 502
+    } else {
+      message = "Verification failed due to a server error"
+    }
 
     return NextResponse.json(
       {
@@ -120,7 +150,7 @@ Return a JSON object with exactly these fields:
             ? err.message
             : undefined,
       },
-      { status: 500 }
+      { status }
     )
   }
 }

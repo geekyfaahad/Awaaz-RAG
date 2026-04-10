@@ -14,6 +14,7 @@ function getVerdictStyles(verdict: string) {
       return {
         icon: <ShieldCheck className="w-8 h-8 text-success" />,
         bg: "bg-success/10",
+        barBg: "bg-success",
         border: "border-success/20",
         text: "text-success",
       }
@@ -21,6 +22,7 @@ function getVerdictStyles(verdict: string) {
       return {
         icon: <ShieldAlert className="w-8 h-8 text-error" />,
         bg: "bg-error/10",
+        barBg: "bg-error",
         border: "border-error/20",
         text: "text-error",
       }
@@ -28,6 +30,7 @@ function getVerdictStyles(verdict: string) {
       return {
         icon: <ShieldQuestion className="w-8 h-8 text-warning" />,
         bg: "bg-warning/10",
+        barBg: "bg-warning",
         border: "border-warning/20",
         text: "text-warning",
       }
@@ -81,7 +84,7 @@ export function VerdictCard({ parsedResult }: VerdictCardProps) {
           {/* Confidence bar */}
           <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
             <div
-              className={cn("h-full rounded-full transition-all duration-1000", styles.bg.replace("/10", ""))}
+              className={cn("h-full rounded-full transition-all duration-1000", styles.barBg)}
               style={{ width: `${parsedResult.confidence || 0}%` }}
             />
           </div>

@@ -105,9 +105,11 @@ Return a JSON array of exactly 3 claims. Example: ["Claim one here", "Claim two 
     )
   } catch (err) {
     console.error("Trending API Error:", err)
+    const errMsg = err instanceof Error ? err.message : ""
+    const isOverloaded = errMsg.includes("503") || errMsg.includes("high demand") || errMsg.includes("Service Unavailable")
     return Response.json(
-      { trending_claims: [], error: "Service unavailable" },
-      { status: 200 }
+      { trending_claims: [], error: isOverloaded ? "AI service temporarily overloaded" : "Service unavailable" },
+      { status: isOverloaded ? 503 : 500 }
     )
   }
 }

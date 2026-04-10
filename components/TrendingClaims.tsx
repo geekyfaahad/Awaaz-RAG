@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 interface TrendingClaimsProps {
   trending: string[]
   fetchingTrending: boolean
+  trendingError?: boolean
   onRefresh: () => void
   onVerify: (claim: string) => void
 }
@@ -13,6 +14,7 @@ interface TrendingClaimsProps {
 export function TrendingClaims({
   trending,
   fetchingTrending,
+  trendingError,
   onRefresh,
   onVerify,
 }: TrendingClaimsProps) {
@@ -52,7 +54,21 @@ export function TrendingClaims({
                 </div>
               </button>
             ))
-          : Array(3)
+          : trendingError
+            ? (
+              <div className="col-span-full glass-card p-6 text-center">
+                <p className="text-slate-400 text-sm mb-3">Could not load trending claims right now.</p>
+                <button
+                  onClick={onRefresh}
+                  disabled={fetchingTrending}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1 mx-auto"
+                >
+                  <RefreshCcw className={cn("w-3 h-3", fetchingTrending && "animate-spin")} />
+                  Try again
+                </button>
+              </div>
+            )
+            : Array(3)
               .fill(0)
               .map((_, i) => (
                 <div

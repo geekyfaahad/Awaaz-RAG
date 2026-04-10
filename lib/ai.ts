@@ -34,7 +34,7 @@ export async function aiReasoning(prompt: string): Promise<string> {
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
-        temperature: 0.3, // Lower temp for more consistent fact-checking
+        temperature: 0.3,
       }),
       AI_TIMEOUT,
       "OpenAI"

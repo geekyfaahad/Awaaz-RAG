@@ -5,7 +5,6 @@ import {
   ShieldCheck,
   AlertCircle,
   RefreshCcw,
-  Loader2,
 } from "lucide-react"
 import type { VerificationResult, Article } from "@/lib/types"
 
@@ -30,25 +29,36 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null)
   const [trending, setTrending] = useState<string[]>([])
   const [fetchingTrending, setFetchingTrending] = useState(false)
+  const [trendingError, setTrendingError] = useState(false)
 
-  useEffect(() => {
-    fetchTrending()
-  }, [])
-
-  const fetchTrending = async () => {
+  const fetchTrending = useCallback(async () => {
     setFetchingTrending(true)
+    setTrendingError(false)
     try {
       const res = await fetch("/api/trending")
       const data = await res.json()
-      if (data.trending_claims) {
+      if (!res.ok || data.error) {
+        console.error("Trending API error:", data.error)
+        setTrendingError(true)
+        setTrending([])
+        return
+      }
+      if (data.trending_claims && data.trending_claims.length > 0) {
         setTrending(data.trending_claims)
+      } else {
+        setTrendingError(true)
       }
     } catch (err) {
       console.error("Failed to fetch trending:", err)
+      setTrendingError(true)
     } finally {
       setFetchingTrending(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchTrending()
+  }, [fetchTrending])
 
   const verify = useCallback(async (targetClaim?: string) => {
     const activeClaim = targetClaim || claim
@@ -71,7 +81,8 @@ export default function Home() {
       const data = await res.json()
 
       if (!res.ok || data.error) {
-        setError(data.error || "Verification failed")
+        const detail = data.details ? ` (${data.details})` : ""
+        setError((data.error || "Verification failed") + detail)
         return
       }
 
@@ -143,6 +154,7 @@ export default function Home() {
         <TrendingClaims
           trending={trending}
           fetchingTrending={fetchingTrending}
+          trendingError={trendingError}
           onRefresh={fetchTrending}
           onVerify={(t) => verify(t)}
         />

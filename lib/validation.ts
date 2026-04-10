@@ -40,15 +40,7 @@ export function sanitizeClaim(raw: unknown): ValidationResult {
   // Trim whitespace
   let claim = raw.trim()
 
-  // Length check
-  if (claim.length < MIN_CLAIM_LENGTH) {
-    return {
-      valid: false,
-      sanitized: "",
-      error: `Claim too short (minimum ${MIN_CLAIM_LENGTH} characters)`,
-    }
-  }
-
+  // Raw length upper bound (before sanitization)
   if (claim.length > MAX_CLAIM_LENGTH) {
     return {
       valid: false,
@@ -63,6 +55,18 @@ export function sanitizeClaim(raw: unknown): ValidationResult {
     .replace(/<[^>]*>/g, "")
     .replace(/[<>]/g, "")
 
+  // Normalize whitespace
+  claim = claim.replace(/\s+/g, " ").trim()
+
+  // Length check after sanitization
+  if (claim.length < MIN_CLAIM_LENGTH) {
+    return {
+      valid: false,
+      sanitized: "",
+      error: `Claim too short (minimum ${MIN_CLAIM_LENGTH} characters)`,
+    }
+  }
+
   // Check for prompt injection attempts
   for (const pattern of INJECTION_PATTERNS) {
     if (pattern.test(claim)) {
@@ -73,9 +77,6 @@ export function sanitizeClaim(raw: unknown): ValidationResult {
       }
     }
   }
-
-  // Normalize whitespace
-  claim = claim.replace(/\s+/g, " ").trim()
 
   return { valid: true, sanitized: claim }
 }
