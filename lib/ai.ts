@@ -19,8 +19,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ])
 }
 
-/** Default timeout for AI calls (30 seconds) */
-const AI_TIMEOUT = 30_000
+/** Default timeout for AI calls (20 seconds) */
+const AI_TIMEOUT = 20_000
 
 /**
  * Send a prompt to the configured AI provider and get a JSON response.
@@ -34,7 +34,8 @@ export async function aiReasoning(prompt: string): Promise<string> {
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
-        temperature: 0.3,
+        temperature: 0.2,
+        max_tokens: 512,
       }),
       AI_TIMEOUT,
       "OpenAI"
@@ -45,10 +46,11 @@ export async function aiReasoning(prompt: string): Promise<string> {
 
   if (gemini) {
     const model = gemini.getGenerativeModel({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-flash-lite",
       generationConfig: {
         responseMimeType: "application/json",
-        temperature: 0.3,
+        temperature: 0.2,
+        maxOutputTokens: 512,
       },
     })
 

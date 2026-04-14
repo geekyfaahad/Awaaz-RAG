@@ -70,34 +70,24 @@ export async function POST(req: NextRequest) {
     }
 
     // --- Fetch evidence ---
-    const articles = await getGoogleNews(claim)
+    const articles = await getGoogleNews(claim, 3)
 
     const evidence = await buildEvidence(articles)
 
     // --- AI reasoning with improved prompt ---
-    const prompt = `You are a rigorous news fact-checking AI. Your task is to evaluate whether a claim is supported by the provided evidence from news sources.
+    const prompt = `You are a news fact-checking AI. Determine if this claim is TRUE, FAKE, or UNVERIFIED based on the news sources below.
 
-CLAIM:
-"${claim}"
+CLAIM: "${claim}"
 
-EVIDENCE FROM NEWS SOURCES:
+NEWS SOURCES:
 ${evidence}
 
-INSTRUCTIONS:
-1. Carefully analyze each source and compare against the claim.
-2. Consider source reliability and agreement between sources.
-3. If sources contradict the claim, mark as FAKE.
-4. If sources clearly support the claim, mark as TRUE.
-5. If evidence is insufficient or unclear, mark as UNVERIFIED.
-6. Be conservative — only mark TRUE when evidence is strong.
+Verdict rules:
+- TRUE: Multiple credible outlets report or confirm the claim.
+- FAKE: Sources directly contradict or debunk the claim.
+- UNVERIFIED: No relevant sources found, or sources are ambiguous/mixed.
 
-Return a JSON object with exactly these fields:
-{
-  "verdict": "TRUE" | "FAKE" | "UNVERIFIED",
-  "reason": "A clear 2-3 sentence explanation of your reasoning",
-  "confidence": <number 0-100>,
-  "agreement": "Low" | "Medium" | "High"
-}
+Return JSON: {"verdict": "TRUE"|"FAKE"|"UNVERIFIED", "reason": "2-3 sentence explanation", "confidence": <0-100>, "agreement": "Low"|"Medium"|"High"}
 `
 
     const result = await aiReasoning(prompt)

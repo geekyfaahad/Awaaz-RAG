@@ -3,7 +3,59 @@ import { aiReasoning } from "@/lib/ai"
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 import { getCache, setCache, getCacheAge, TTL } from "@/lib/cache"
 
-const parser = new Parser()
+const parser = new Parser({
+  timeout: 15_000,
+  headers: {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    Accept: "application/rss+xml, application/xml, text/xml;q=0.9,*/*;q=0.8",
+  },
+})
+
+function fallbackClaimsFromTitles(titles: string[]): string[] {
+  return titles
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((t) => (t.length > 140 ? `${t.slice(0, 137)}...` : t))
+}
+
+/** OpenAI json_object mode requires a JSON object; Gemini may return an array. */
+function parseModelClaimsJson(text: string): string[] {
+  const cleaned = text.replace(/```json\n?|\n?```/g, "").trim()
+  if (!cleaned) return []
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(cleaned)
+  } catch {
+    const matches = cleaned.match(/"([^"]+)"/g)
+    if (matches) {
+      return matches.map((m) => m.replace(/"/g, "")).slice(0, 3)
+    }
+    return cleaned
+      .split("\n")
+      .map((l) => l.replace(/^[-*]\s*/, "").trim())
+      .filter(Boolean)
+      .slice(0, 3)
+  }
+
+  if (Array.isArray(parsed)) {
+    return parsed.map(String).filter(Boolean).slice(0, 3)
+  }
+
+  if (parsed && typeof parsed === "object") {
+    const o = parsed as Record<string, unknown>
+    for (const key of ["trending_claims", "claims", "items"]) {
+      const arr = o[key]
+      if (Array.isArray(arr)) {
+        return arr.map(String).filter(Boolean).slice(0, 3)
+      }
+    }
+  }
+
+  return []
+}
 
 /** Rate limit: 20 requests per minute per IP */
 const RATE_WINDOW = 60_000
@@ -50,43 +102,32 @@ export async function GET(req: Request) {
 
     const feed = await parser.parseURL(url)
 
-    const titles = feed.items.slice(0, 8).map((i) => {
+    const titles = feed.items.slice(0, 5).map((i) => {
       const title = i.title || ""
       return title.split(" - ").slice(0, -1).join(" - ") || title
     })
 
-    const prompt = `Rewrite these news headlines as short, verifiable factual claims (max 8 words each). 
-Make them sound like something someone might share on social media.
+    const prompt = `Rewrite these headlines as short verifiable claims (max 8 words each).
 
-Headlines:
 ${titles.join("\n")}
 
-Return a JSON array of exactly 3 claims. Example: ["Claim one here", "Claim two here", "Claim three here"]
+Return JSON with key "trending_claims": an array of exactly 3 strings.
+Example: {"trending_claims": ["Claim one", "Claim two", "Claim three"]}
 `
 
-    const text = await aiReasoning(prompt)
+    let claims: string[] = []
 
-    if (!text) {
-      return Response.json({ trending_claims: [] })
+    try {
+      const text = await aiReasoning(prompt)
+      if (text) {
+        claims = parseModelClaimsJson(text)
+      }
+    } catch (aiErr) {
+      console.error("Trending AI step failed, using headline fallback:", aiErr)
     }
 
-    let claims: string[] = []
-    try {
-      const cleaned = text.replace(/```json\n?|\n?```/g, "").trim()
-      const parsed = JSON.parse(cleaned)
-      claims = Array.isArray(parsed) ? parsed : []
-    } catch (err) {
-      console.error("Failed to parse trending claims JSON:", err)
-      // Fallback: try to extract quoted strings
-      const matches = text.match(/"([^"]+)"/g)
-      if (matches) {
-        claims = matches.map((m) => m.replace(/"/g, "")).slice(0, 3)
-      } else {
-        claims = text
-          .split("\n")
-          .filter((line) => line.trim())
-          .slice(0, 3)
-      }
+    if (claims.length === 0) {
+      claims = fallbackClaimsFromTitles(titles)
     }
 
     const result = claims.slice(0, 3)
@@ -106,10 +147,23 @@ Return a JSON array of exactly 3 claims. Example: ["Claim one here", "Claim two 
   } catch (err) {
     console.error("Trending API Error:", err)
     const errMsg = err instanceof Error ? err.message : ""
-    const isOverloaded = errMsg.includes("503") || errMsg.includes("high demand") || errMsg.includes("Service Unavailable")
+    const isOverloaded =
+      errMsg.includes("503") ||
+      errMsg.includes("high demand") ||
+      errMsg.includes("Service Unavailable") ||
+      errMsg.includes("Service unavailable")
+    const noAi =
+      errMsg.includes("No AI API key") || errMsg.includes("API key configured")
     return Response.json(
-      { trending_claims: [], error: isOverloaded ? "AI service temporarily overloaded" : "Service unavailable" },
-      { status: isOverloaded ? 503 : 500 }
+      {
+        trending_claims: [],
+        error: noAi
+          ? "AI not configured"
+          : isOverloaded
+            ? "AI service temporarily overloaded"
+            : "Service unavailable",
+      },
+      { status: noAi ? 503 : isOverloaded ? 503 : 500 }
     )
   }
 }

@@ -16,14 +16,18 @@ export async function buildEvidence(articles: Article[]): Promise<string> {
       const text = await extractArticle(art.link)
       const hasContent = text.length > 50
 
-      return [
+      const lines = [
         `--- SOURCE ${index + 1} ---`,
         `OUTLET: ${art.source}`,
         `HEADLINE: ${art.title}`,
-        `CONTENT: ${hasContent ? text : "[Article content could not be extracted]"}`,
-        `STATUS: ${hasContent ? "RETRIEVED" : "EXTRACTION_FAILED"}`,
-        "",
-      ].join("\n")
+      ]
+
+      if (hasContent) {
+        lines.push(`CONTENT: ${text}`)
+      }
+
+      lines.push("")
+      return lines.join("\n")
     })
   )
 
@@ -34,16 +38,5 @@ export async function buildEvidence(articles: Article[]): Promise<string> {
     .map((r) => r.value)
     .join("\n")
 
-  const successCount = results.filter(
-    (r) => r.status === "fulfilled"
-  ).length
-  const failCount = results.filter(
-    (r) => r.status === "rejected"
-  ).length
-
-  return [
-    `EVIDENCE SUMMARY: ${successCount} sources retrieved, ${failCount} failed.`,
-    "",
-    evidence,
-  ].join("\n")
+  return evidence
 }

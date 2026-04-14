@@ -38,7 +38,7 @@ export default function Home() {
       const res = await fetch("/api/trending")
       const data = await res.json()
       if (!res.ok || data.error) {
-        console.error("Trending API error:", data.error)
+        console.warn("Trending API error:", data.error)
         setTrendingError(true)
         setTrending([])
         return
@@ -49,7 +49,7 @@ export default function Home() {
         setTrendingError(true)
       }
     } catch (err) {
-      console.error("Failed to fetch trending:", err)
+      console.warn("Failed to fetch trending:", err)
       setTrendingError(true)
     } finally {
       setFetchingTrending(false)
@@ -204,9 +204,9 @@ export default function Home() {
           {/* Cached badge */}
           {result.cached && (
             <div className="flex justify-center">
-              <span className="text-xs text-slate-500 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+              {/* <span className="text-xs text-slate-500 bg-white/5 px-3 py-1 rounded-full border border-white/10">
                 ⚡ Cached result — verified recently
-              </span>
+              </span> */}
             </div>
           )}
 

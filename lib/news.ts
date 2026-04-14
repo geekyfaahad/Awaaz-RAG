@@ -80,8 +80,8 @@ const CONTENT_SELECTORS = [
 export async function extractArticle(url: string): Promise<string> {
   try {
     const { data } = await axios.get(url, {
-      timeout: 8000,
-      maxRedirects: 3,
+      timeout: 6000,
+      maxRedirects: 5,
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -105,13 +105,13 @@ export async function extractArticle(url: string): Promise<string> {
         .filter((text) => text.length > 30) // Skip trivially short paragraphs
 
       if (paragraphs.length >= 2) {
-        return paragraphs.join(" ").slice(0, 2000)
+        return paragraphs.join(" ").slice(0, 800)
       }
     }
 
     // Last resort: grab all visible text from body
     const bodyText = $("body").text().replace(/\s+/g, " ").trim()
-    return bodyText.slice(0, 2000)
+    return bodyText.slice(0, 800)
   } catch {
     return ""
   }
